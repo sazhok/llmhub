@@ -1,0 +1,27 @@
+[project]
+name = "llmhub"
+version = "0.1.0"
+description = "LLM checklist job queue - the LLM half of worker_acceptor_light.php, as a service"
+readme = "README.md"
+requires-python = ">=3.13"
+
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "psycopg[binary]>=3.3.4",
+    "psycopg-pool>=3.3.1",
+    # The legacy shim takes form-encoded POSTs, which is how fw and ochat talk today.
+    "python-multipart>=0.0.9",
+    "httpx>=0.28.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.2.2",
+    "logly==0.1.6",  # 0.2.x is a breaking rewrite - pinned to match mediahub/asrhub/fw
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

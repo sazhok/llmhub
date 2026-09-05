@@ -1,0 +1,25 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+        "default": {
+            "()": "uvicorn.logging.DefaultFormatter",
+            "fmt": "%(asctime)s %(levelprefix)s %(message)s",
+            "use_colors": false
+        }
+    },
+    "handlers": {
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "default",
+            "filename": "logs/llmhub.log",
+            "maxBytes": 52428800,
+            "backupCount": 5
+        }
+    },
+    "loggers": {
+        "uvicorn": {"handlers": ["file"], "level": "INFO", "propagate": false},
+        "uvicorn.error": {"level": "INFO"},
+        "uvicorn.access": {"handlers": ["file"], "level": "INFO", "propagate": false}
+    }
+}

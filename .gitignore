@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+logs/
+work/
+llmhub.pid
+samples/
+.pytest_cache/

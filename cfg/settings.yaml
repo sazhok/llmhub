@@ -1,0 +1,16 @@
+# Every value here has a default in llmhub/config.py that documents where it comes from.
+# Uncomment only what you are deliberately changing.
+
+# The upstream taskset tree on this box: prompts2tasks.py writes it, deploy_params_remote.sh
+# pushes it to har for the companies still served by the PHP.
+params_root: /home/ubuntu/hrm/local/data/params
+
+spool_dir: work/spool
+
+# Kept identical to the path the PHP handed out, because ochat uses its stem as a cache key.
+legacy_lp_root: /home/ubuntu/data/uploads
+
+# lease_ttl_s: 1800            # RUNNING_INDICATOR_MAX_AGE_S
+# min_speech_chars: 48
+# short_transcript_settle_s: 300
+# taskset_ttl_s: 60
