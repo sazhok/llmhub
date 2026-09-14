@@ -12,8 +12,6 @@ Read `README.md`; see `../CLAUDE.md` for how this sits beside the other projects
 
 It is an ordinary FastAPI request/response service, not a filesystem-polling loop — the thing it *replaced* was the filesystem.
 
-This is the one local repo with **no GitHub remote**.
-
 ## Commands
 
 ```bash
