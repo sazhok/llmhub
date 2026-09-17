@@ -32,7 +32,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from env_secrets import get_env_secret  # noqa: E402
 
 HAR_URL = "https://api.harmonica.cloud/hub/v1/worker_acceptor_light.php"
-LOCAL_URL = "http://127.0.0.1:8008/hub/v1/worker_acceptor_light.php"
+LOCAL_URL = (os.environ.get("LLMHUB_URL") or "http://100.97.153.111:8008") + \
+            "/hub/v1/worker_acceptor_light.php"
 
 # worker_acceptor_light.php:1546-1580. Present on every entry, unconditionally.
 ALWAYS = {"company_id", "task", "task_name", "task_prompt", "body", "total_tasks", "lp",
@@ -141,6 +142,12 @@ def main() -> int:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--capture-har", action="store_true",
                         help="peek the LIVE hub once - delays one real call by up to 30 min")
+    parser.add_argument("--yes", action="store_true",
+                        help="skip the confirmation. For a script, which must never LOOP on "
+                             "this: the prompt is written without a newline, so a wrapper "
+                             "matching '^saved ' on the output never matches and captures "
+                             "again and again - five real calls were marked in progress that "
+                             "way on 2026-09-05 instead of one")
     parser.add_argument("--out", default="", help="where to save a captured sample")
     parser.add_argument("--sample", default="", help="a previously captured har batch")
     parser.add_argument("--company", default="", help="restrict the peek to one company")
@@ -152,8 +159,9 @@ def main() -> int:
         print("This peeks the PRODUCTION hub. One real call will be marked in-progress and,")
         print("because nothing here answers it, will wait up to 30 minutes before being")
         print("offered again. No answer is written and no customer webhook is called.")
-        if input("type 'yes' to continue: ").strip() != "yes":
+        if not args.yes and input("type 'yes' to continue: ").strip() != "yes":
             return 1
+        print()
         batch = peek(args.har_url, _har_auth(), include=args.company)
         if not batch:
             print("the live hub had no work to hand out - try again later")

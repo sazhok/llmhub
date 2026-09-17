@@ -25,7 +25,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from env_secrets import get_env_secret  # noqa: E402
 
-DEFAULT_URL = "http://127.0.0.1:8008/hub/v1/worker_acceptor_light.php"
+DEFAULT_URL = (os.environ.get("LLMHUB_URL") or "http://100.97.153.111:8008") + \
+              "/hub/v1/worker_acceptor_light.php"
 
 
 def _basic() -> tuple[str, str]:

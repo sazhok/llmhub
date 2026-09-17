@@ -21,7 +21,8 @@ QUICK=0
 
 COMPANY="test-9901"
 UUID="e2e-$(date +%s)-$$"
-URL="http://127.0.0.1:8008/hub/v1/worker_acceptor_light.php"
+BASE="${LLMHUB_URL:-http://100.97.153.111:8008}"
+URL="$BASE/hub/v1/worker_acceptor_light.php"
 PY=.venv/bin/python
 FAILURES=0
 STARTED_SERVER=0
@@ -81,15 +82,15 @@ trap cleanup EXIT
 # --------------------------------------------------------------------------------------
 step "0. a running llmhub"
 # --------------------------------------------------------------------------------------
-if curl -fsS -m 3 http://127.0.0.1:8008/health >/dev/null 2>&1; then
-    ok "already serving on 127.0.0.1:8008"
+if curl -fsS -m 3 "$BASE/health" >/dev/null 2>&1; then
+    ok "already serving on $BASE"
 else
     echo "  starting one..."
     bash serve.sh >/dev/null 2>&1 || { echo "could not start llmhub" >&2; exit 2; }
     STARTED_SERVER=1
     ok "started"
 fi
-HEALTH=$(curl -fsS -m 5 http://127.0.0.1:8008/health)
+HEALTH=$(curl -fsS -m 5 "$BASE/health")
 echo "$HEALTH" | grep -q '"db":true' && ok "database reachable" || bad "health says $HEALTH"
 
 # --------------------------------------------------------------------------------------

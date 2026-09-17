@@ -55,7 +55,7 @@ uv venv --python 3.13 --seed
 uv sync --extra dev
 bash scripts/setup_postgres.sh     # role + database on the :5433 cluster, once
 
-bash serve.sh fg                   # 127.0.0.1:8008
+bash serve.sh fg                   # 100.97.153.111:8008 (the tailnet IP - see below)
 bash serve.sh                      # background, logs/llmhub.log (rotated)
 bash control/status.sh             # health + queue snapshot
 bash control/stop.sh               # graceful: .exit_llmhub, then waits
@@ -64,8 +64,13 @@ python3 -m pytest                  # 65 tests; the PG and mediahub ones skip if 
 bash scripts/verify_e2e.sh         # the contract gate: order -> peek -> report -> mediahub
 ```
 
-It binds **loopback**, not the tailnet IP: both clients run on this box. `0.0.0.0` stays
-forbidden — this machine has a public IP and constant scanner traffic.
+It binds the **tailnet IP**, not loopback, because only one of its two clients is on this
+box: `ochat`'s gateway workers poll from here, but `fw`'s `llmmon` — the producer — runs on
+`oa`, `qd` and `az` and nowhere else. Loopback would be a queue nothing could order into, and
+`llmmon` deletes the job file whether or not the POST succeeded (`fw/llmmon.py:624`), so an
+unreachable hub loses the call rather than retrying it. `serve.sh` refuses to bind anything
+but loopback with no `LLMHUB_BASIC_USERS`, since the shim authenticates nothing without it.
+`0.0.0.0` stays forbidden — this machine has a public IP and constant scanner traffic.
 
 ## Sources: the migration valve
 
@@ -87,16 +92,26 @@ everything parked for it.
 
 Three steps, and the order matters:
 
-1. **The consumer first.** Add `"http://127.0.0.1:8008/hub/v1/worker_acceptor_light.php": {}`
+1. **The consumer first.** Add `"http://100.97.153.111:8008/hub/v1/worker_acceptor_light.php": {}`
    to `ochat/gateway.yaml`'s `query_url2basic_info`, leaving har's URL enabled. Harmless: the
    queue is empty.
-2. **Then the producer.** Point `fw`'s `llmmon` at llmhub for that company.
+2. **Then the producer.** List the company under llmhub's URL in
+   `fw/cfg/query_url_template2company_ids.yaml` and restart `llmmon`. Everything not listed in
+   that file keeps ordering from har, so an empty file is the pre-cutover state rather than a
+   broken config — which is why `llmmon` defaults it instead of refusing it the way it refuses
+   its other three.
 3. **Then `--enable` it here.**
 
 Enabling the consumer alone costs nothing. Enabling the producer alone means orders land where
 nobody is polling, and the call goes unanalysed. Rollback is one line of YAML.
 
 Calls already in flight on har stay on har: llmhub takes only orders placed after the switch.
+
+**Cut over so far:** `1call-203` (Costa Rica), 2026-09-05 — the first company off the PHP
+hub. Before the switch, `scripts/shadow_compare.py` was run against a live `monolead-1` batch
+from har and found two differences, both since fixed: the shim now reproduces PHP's
+assoc-array re-encoding (`legacy/render.py`'s `php_shape` — `{"0": x}` leaves as `[x]`,
+which ochat branches on), and the comparison is clean.
 
 ## Where things live
 

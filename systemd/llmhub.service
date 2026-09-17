@@ -11,7 +11,8 @@ Type=simple
 User=ubuntu
 Group=ubuntu
 WorkingDirectory=/home/ubuntu/hrm/local/llmhub
-ExecStart=/home/ubuntu/hrm/local/llmhub/.venv/bin/uvicorn llmhub.app:app --host 127.0.0.1 --port 8008 --log-config uvicorn_log_config.json
+# The tailnet IP, not loopback: fw's llmmon orders from oa/qd/az. See serve.sh's comment.
+ExecStart=/home/ubuntu/hrm/local/llmhub/.venv/bin/uvicorn llmhub.app:app --host 100.97.153.111 --port 8008 --log-config uvicorn_log_config.json
 # SIGHUP reloads API keys without dropping in-flight leases (auth.install_sighup_handler)
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure

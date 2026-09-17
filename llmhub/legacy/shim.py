@@ -3,7 +3,7 @@
 Mounted at the same path the live hub uses, so switching a client is replacing a host name:
 
     https://api.harmonica.cloud/hub/v1/worker_acceptor_light.php
-    http://127.0.0.1:8008/hub/v1/worker_acceptor_light.php
+    http://100.97.153.111:8008/hub/v1/worker_acceptor_light.php
 
 Everything here is bug-compatible on purpose except one thing, marked below. In particular:
 

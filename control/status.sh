@@ -4,7 +4,7 @@ wd=.
 [ ! -f $wd/serve.sh ] && wd=..
 cd $wd
 set -a; [ -f .env ] && source .env; set +a
-BASE=${LLMHUB_URL:-http://127.0.0.1:8008}
+BASE=${LLMHUB_URL:-http://100.97.153.111:8008}
 echo "--- health:"
 curl -sS "$BASE/health" && echo
 echo "--- queue:"

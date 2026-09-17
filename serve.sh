@@ -7,13 +7,26 @@ source .venv/bin/activate
 
 mkdir -p logs
 
-# Loopback, not the tailnet IP. Both clients of this service run on this box: fw's llmmon
-# orders, and ochat's nine gateway workers poll. asrhub and mediahub bind the Tailscale IP
-# only because they have off-host clients (STT workers, har); llmhub has none, so the smaller
-# surface is free. 0.0.0.0 stays forbidden - this box has a public IP and constant scanner
-# traffic. If an off-host client ever appears, change this to 100.97.153.111 and say here why.
-HOST=127.0.0.1
+# The tailnet IP, because the two clients are NOT both on this box: ochat's gateway workers
+# poll from here, but the producer does not - `fw`'s llmmon runs on oa, qd and az, and only
+# there (2026-09-05: `ps` on all three, none on bq). A queue bound to loopback is one nothing
+# can order into, and llmmon deletes the job file whether or not the POST succeeded
+# (fw/llmmon.py:624), so an unreachable hub is a lost call rather than a retried one. Same
+# reason asrhub's gateway binds this address for its off-host workers. 0.0.0.0 stays
+# forbidden - this box has a public IP and constant scanner traffic.
+#
+# Set LLMHUB_HOST=127.0.0.1 in .env to go back to loopback (nothing off-box can order then).
+set -a; [ -f .env ] && source .env; set +a
+HOST=${LLMHUB_HOST:-100.97.153.111}
 PORT=8008   # 8000-8007 are taken; see ../CLAUDE.md's port table
+
+# Off the loopback the shim is reachable by anything on the tailnet, and with no
+# LLMHUB_BASIC_USERS it authenticates nothing (auth.require_basic returns "anonymous"). That
+# combination is refused here rather than logged at boot and forgotten.
+if [ "$HOST" != "127.0.0.1" ] && [ -z "${LLMHUB_BASIC_USERS//,/}" ]; then
+    echo "refusing to bind $HOST with no LLMHUB_BASIC_USERS - the shim would be open" >&2
+    exit 1
+fi
 
 # Stop whatever is already on the port, and wait for the new process to actually answer.
 #
@@ -22,18 +35,25 @@ PORT=8008   # 8000-8007 are taken; see ../CLAUDE.md's port table
 # 0, the script prints "Started with PID ...", and the OLD process keeps serving. Health
 # checks pass and only the new routes are missing. It happened again here on 2026-09-05, so
 # it is not a historical curiosity.
+# Matched by PORT on any address, not by $HOST:$PORT: on 2026-09-05 the bind moved from
+# loopback to the tailnet IP and the address-scoped version saw nothing to stop, so the old
+# process kept serving 127.0.0.1:8008 beside the new one - two uvicorns on one database.
+listeners() {
+    ss -ltnpH "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | sort -u || true
+}
+
 stop_existing() {
     local pids
-    pids=$(ss -ltnpH "src $HOST:$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | sort -u || true)
+    pids=$(listeners)
     [ -z "$pids" ] && return 0
-    echo "stopping $pids on $HOST:$PORT"
+    echo "stopping $pids on port $PORT"
     kill $pids 2>/dev/null || true
     for _ in $(seq 20); do
         sleep 0.5
-        pids=$(ss -ltnpH "src $HOST:$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | sort -u || true)
+        pids=$(listeners)
         [ -z "$pids" ] && return 0
     done
-    echo "still listening on $HOST:$PORT after 10s: $pids" >&2
+    echo "still listening on port $PORT after 10s: $pids" >&2
     return 1
 }
 
