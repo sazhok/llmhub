@@ -143,7 +143,12 @@ def test_nine_concurrent_claimers_never_hand_out_the_same_order_twice(clean):
     def run(n: int):
         got = dispatch.claim(worker_id=f"w{n}", want=3, **LEASE)
         with lock:
-            seen.extend(b["order"]["order_id"] for b in got)
+            # Only this test's rows: claim() takes whatever is ready in the database, and this
+            # is the live one (there is no separate test cluster), so an order left ready by
+            # verify_e2e.sh or by a shadow-compare fixture would otherwise be counted here and
+            # fail an assertion about nine.
+            seen.extend(b["order"]["order_id"] for b in got
+                        if b["order"]["call_uuid"].startswith("pytest-"))
 
     threads = [threading.Thread(target=run, args=(i,)) for i in range(9)]
     for t in threads:

@@ -12,8 +12,36 @@ Two subtleties carried over deliberately:
     whenever `command` is set, defaulting only `nonapp` to "". `param_name2value` is emitted
     unguarded, so a config with `command` and no `param_name2value` yields a null - and
     ochat's FieldLogicFilter is written against that.
+  - every value read out of config.json makes a round trip through PHP's array type, which
+    turns some objects into arrays. See `php_shape`.
 """
 from typing import Any
+
+
+def php_shape(value: Any) -> Any:
+    """Re-encode a config.json value the way the PHP hub does.
+
+    `json_decode($json, true)` gives assoc arrays, and `json_encode` then writes an array as a
+    JSON *list* whenever its keys are exactly 0..n-1 - PHP cannot tell the two apart. So
+    monolead-1's `"param_name2value": {"0": "{Representative position}"}` leaves har as
+    `["{Representative position}"]`, and an empty object leaves it as `[]`.
+
+    Found by scripts/shadow_compare.py against a live monolead-1 batch on 2026-09-05, and it
+    is not cosmetic: ochat branches on the type it gets (llm_gateway.cur.py:144-165) - a dict
+    is reduced to its first value before FieldLogicFilter sees it, a list is handed over whole
+    and reduced inside the filter instead (llm_logic.py:26). Both work today for the
+    single-entry case every deployed taskset uses, which is exactly why this must not be left
+    to chance: the shim's job is to be the same hub, not a better one.
+    """
+    if isinstance(value, dict):
+        shaped = {key: php_shape(item) for key, item in value.items()}
+        keys = list(shaped)
+        if keys == [str(index) for index in range(len(keys))]:
+            return [shaped[key] for key in keys]   # includes {} -> [], as PHP does
+        return shaped
+    if isinstance(value, list):
+        return [php_shape(item) for item in value]
+    return value
 
 
 def batch_entry(
@@ -34,7 +62,7 @@ def batch_entry(
         # equal across every generation on this box. The worker reports back under this same
         # string, and that is what identifies the task again.
         "task_name": config.get("name", task_name),
-        "task_prompt": config.get("prompt", ""),
+        "task_prompt": php_shape(config.get("prompt", "")),
         # The WHOLE vtt, cue timings included: a checklist verdict has to be traceable back to
         # the moment of the call an auditor's comment points at. Only the too-short check runs
         # on the timing-free text (worker_acceptor_light.php:1505-1516).
@@ -49,21 +77,21 @@ def batch_entry(
     if taskset != "":
         entry["taskset"] = taskset
     if config.get("afterword") is not None:
-        entry["task_afterword"] = config["afterword"]
+        entry["task_afterword"] = php_shape(config["afterword"])
     if config.get("uuid") is not None:
-        entry["uuid"] = config["uuid"]
+        entry["uuid"] = php_shape(config["uuid"])
     if config.get("yes_no") is not None:
-        entry["yes_no"] = config["yes_no"]
+        entry["yes_no"] = php_shape(config["yes_no"])
     if config.get("type") is not None:
-        entry["type"] = config["type"]
+        entry["type"] = php_shape(config["type"])
     if config.get("command") is not None:
-        entry["command"] = config["command"]
-        entry["param_name2value"] = config.get("param_name2value")
-        entry["nonapp"] = config.get("nonapp", "") if config.get("nonapp") is not None else ""
+        entry["command"] = php_shape(config["command"])
+        entry["param_name2value"] = php_shape(config.get("param_name2value"))
+        entry["nonapp"] = php_shape(config.get("nonapp", "")) if config.get("nonapp") is not None else ""
     if config.get("source") is not None:
-        entry["source"] = config["source"]
+        entry["source"] = php_shape(config["source"])
     if config.get("answer2crits") is not None:
-        entry["answer2crits"] = config["answer2crits"]
+        entry["answer2crits"] = php_shape(config["answer2crits"])
 
     # From the order (status.yaml in the PHP). `url` and `language` are always written there,
     # the other three only when the ordering request carried them.

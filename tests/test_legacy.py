@@ -105,8 +105,47 @@ def test_command_drags_param_name2value_and_nonapp_along():
     entry = _entry({"name": "1", "command": "field",
                     "param_name2value": {"0": "{X}"}, "nonapp": "{call dropped}"})
     assert entry["command"] == "field"
-    assert entry["param_name2value"] == {"0": "{X}"}
+    # A list, not the {"0": ...} the config file holds - see php_shape below.
+    assert entry["param_name2value"] == ["{X}"]
     assert entry["nonapp"] == "{call dropped}"
+
+
+# --------------------------------------------------------------------------------------
+# php_shape(): the config value's round trip through PHP's one array type
+# --------------------------------------------------------------------------------------
+
+def test_a_zero_indexed_object_leaves_as_a_list():
+    """json_decode($json, true) then json_encode: PHP cannot tell {"0": x} from [x].
+
+    Caught by scripts/shadow_compare.py against a live monolead-1 batch, 2026-09-05: har was
+    sending ["{Representative position}"] where the config.json on disk holds
+    {"0": "{Representative position}"}. ochat takes a different branch for each shape."""
+    assert render.php_shape({"0": "a"}) == ["a"]
+    assert render.php_shape({"0": "a", "1": "b"}) == ["a", "b"]
+
+
+def test_an_empty_object_leaves_as_an_empty_list():
+    assert render.php_shape({}) == []
+
+
+def test_a_non_sequential_object_stays_an_object():
+    assert render.php_shape({"1": "a"}) == {"1": "a"}
+    assert render.php_shape({"0": "a", "name": "b"}) == {"0": "a", "name": "b"}
+
+
+def test_the_rule_is_recursive_and_leaves_scalars_alone():
+    assert render.php_shape({"k": {"0": {"0": "deep"}}}) == {"k": [["deep"]]}
+    assert render.php_shape("plain") == "plain"
+    assert render.php_shape(None) is None
+    assert render.php_shape(["a", {"0": "b"}]) == ["a", ["b"]]
+
+
+def test_every_config_derived_value_goes_through_it():
+    entry = _entry({"name": "1", "command": "field", "yes_no": {"0": "так/ні"},
+                    "answer2crits": {"0": {"0": "crit"}}, "source": {"0": "script"}})
+    assert entry["yes_no"] == ["так/ні"]
+    assert entry["answer2crits"] == [["crit"]]
+    assert entry["source"] == ["script"]
 
 
 def test_command_without_param_name2value_still_emits_it_as_null():
