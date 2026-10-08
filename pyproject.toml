@@ -15,7 +15,7 @@ dependencies = [
     "httpx>=0.28.0",
     "pyyaml>=6.0",
     "python-dotenv>=1.2.2",
-    "logly==0.1.6",  # 0.2.x is a breaking rewrite - pinned to match mediahub/asrhub/fw
+    "logly==0.2.5",  # pinned: 0.1.6 declared size_limit but never honoured it (see logging_setup.py)
 ]
 
 [project.optional-dependencies]

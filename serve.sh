@@ -82,7 +82,7 @@ fi
 
 echo "Running llmhub in background..."
 nohup uvicorn llmhub.app:app --host "$HOST" --port "$PORT" \
-    --log-config uvicorn_log_config.json &> logs/llmhub.startup.log &
+    --log-config uvicorn_log_config.json &>> logs/llmhub.startup.log &
 echo $! > llmhub.pid
 if wait_healthy; then
     echo "Started with PID $(cat llmhub.pid), logging to logs/llmhub.log (rotated)"
